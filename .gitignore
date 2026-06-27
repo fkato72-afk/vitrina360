@@ -1,0 +1,25 @@
+# Secretos / credenciales — NUNCA al repo
+.env
+deploy/.env
+fabric_token_cache.bin
+
+# Datos institucionales de Ulima — el catalogo se regenera del modelo al arrancar
+# (mantiene el repo generico / publico-seguro)
+backend/catalog.json
+backend/catalogo_llm.md
+
+# Local / diagnostico (traen nombres de tablas Ulima o ids del workspace)
+_test_sp.py
+backend/probe.py
+backend/_probe_ask.py
+backend/fabric_ids.json
+audit.log.jsonl
+backend/audit.log.jsonl
+deploy/data/
+deploy/certbot-www/
+
+# Build artifacts
+__pycache__/
+*.pyc
+web/node_modules/
+web/dist/

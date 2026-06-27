@@ -1,0 +1,45 @@
+# vitrina360 - despliegue de prueba en una VM (IaaS) accesible desde internet.
+# Topologia:  internet -> nginx (TLS) -> oauth2-proxy (Entra ID SSO) -> app (FastAPI+React)
+# Variables en ./.env  (ver .env.example). Levantar:  docker compose up -d --build
+services:
+  app:
+    build: ..
+    image: vitrina360:latest
+    env_file: .env
+    expose: ["8077"]
+    restart: unless-stopped
+    # auditoria persistente (el contenedor es efimero); VITRINA_AUDIT_PATH apunta aqui
+    volumes:
+      - ./data:/app/audit
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    env_file: .env
+    command:
+      - --provider=oidc
+      - --oidc-issuer-url=https://login.microsoftonline.com/${FABRIC_TENANT_ID}/v2.0
+      - --upstream=http://app:8077
+      - --http-address=0.0.0.0:4180
+      - --reverse-proxy=true
+      - --pass-access-token=true
+      - --set-xauthrequest=true
+      - --email-domain=${OAUTH2_PROXY_EMAIL_DOMAIN}
+      - --redirect-url=https://${VITRINA_HOST}/oauth2/callback
+      - --cookie-secure=true
+      - --whitelist-domain=${VITRINA_HOST}
+    expose: ["4180"]
+    depends_on: [app]
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    environment:
+      - VITRINA_HOST=${VITRINA_HOST}
+      - NGINX_ENVSUBST_FILTER=VITRINA_HOST   # solo sustituye ${VITRINA_HOST}, no las $vars de nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./certbot-www:/var/www/certbot:ro
+    ports: ["80:80", "443:443"]
+    depends_on: [oauth2-proxy]
+    restart: unless-stopped

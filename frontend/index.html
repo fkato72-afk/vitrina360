@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ULima360 · Analytics</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --naranja:#E8520E; --naranja2:#F47B20; --soft:#FBEAE0;
+    --tinta:#1b1e23; --gris:#697079; --gris2:#9aa0a8;
+    --linea:#e9eaed; --grid:#eef0f2; --bg:#f5f6f8; --card:#fff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;display:flex;flex-direction:column;height:100vh;overflow:hidden;
+       font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;color:var(--tinta);
+       background:var(--bg);-webkit-font-smoothing:antialiased}
+  header{flex:0 0 auto;display:flex;align-items:center;gap:13px;padding:13px 22px;background:var(--card);
+         border-bottom:1px solid var(--linea)}
+  .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--naranja),var(--naranja2));
+        color:#fff;font-weight:700;display:grid;place-items:center;font-size:15px}
+  header h1{font-size:15.5px;font-weight:600;margin:0;letter-spacing:-.2px}
+  header .sub{font-size:11.5px;color:var(--gris)}
+  .spacer{flex:1}
+  .ghost{background:#fff;color:var(--naranja);border:1px solid #f0cfbd;border-radius:10px;padding:8px 14px;
+         font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;gap:6px;align-items:center;transition:background .15s}
+  .ghost:hover{background:var(--soft)}
+  /* thread */
+  #thread{flex:1 1 auto;overflow-y:auto;padding:22px 18px}
+  .inner{max-width:840px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  .umsg{align-self:flex-end;max-width:78%;background:var(--naranja);color:#fff;padding:10px 15px;
+        border-radius:16px 16px 4px 16px;font-size:14.5px;line-height:1.45;box-shadow:0 1px 2px rgba(232,82,14,.25)}
+  .amsg{align-self:stretch;background:var(--card);border:1px solid var(--linea);border-radius:16px;padding:18px 20px;
+        box-shadow:0 1px 2px rgba(16,24,40,.04);animation:rise .25s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .amsg h2{font-size:17px;font-weight:600;margin:0 0 5px;letter-spacing:-.2px}
+  .amsg .narr{color:var(--gris);font-size:13.5px;line-height:1.6;margin:0 0 14px}
+  .chartbox{width:100%;height:360px}
+  .kpi{display:flex;align-items:baseline;gap:13px;padding:14px 2px 6px}
+  .kpi .num{font-size:50px;font-weight:700;color:var(--naranja);letter-spacing:-1.5px;line-height:1}
+  .kpi .lbl{font-size:14px;color:var(--gris)}
+  .refine{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;padding-top:13px;border-top:1px solid var(--linea)}
+  .refine .lbl{font-size:11.5px;color:var(--gris2);align-self:center;margin-right:2px}
+  .rchip{font-size:12.5px;color:var(--naranja);background:var(--soft);border:1px solid #f6d6c4;border-radius:999px;
+         padding:5px 12px;cursor:pointer;transition:background .15s}
+  .rchip:hover{background:#f8ddcd}
+  details{margin-top:12px;border-top:1px solid var(--linea);padding-top:9px}
+  summary{cursor:pointer;color:var(--gris);font-size:12px;user-select:none}
+  pre{background:#16181d;color:#dfe3e8;padding:13px;border-radius:9px;overflow:auto;font-size:11.5px;line-height:1.5;
+      font-family:Consolas,monospace}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+  th,td{border-bottom:1px solid var(--linea);padding:7px 9px;text-align:left}
+  th{color:var(--gris);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tbody tr:nth-child(even){background:#fafbfc}
+  .err{color:#b42318}
+  /* empty state */
+  .empty{text-align:center;padding:50px 16px 20px;color:var(--gris)}
+  .empty .big{font-size:26px;font-weight:700;color:var(--tinta);letter-spacing:-.5px;margin-bottom:6px}
+  .empty p{font-size:14.5px;margin:0 auto 22px;max-width:46ch;line-height:1.6}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;max-width:620px;margin:0 auto}
+  .chip{font-size:13px;color:var(--naranja);background:var(--soft);border:1px solid #f6d6c4;border-radius:999px;
+        padding:8px 14px;cursor:pointer;transition:background .15s}
+  .chip:hover{background:#f8ddcd}
+  /* composer */
+  .composer{flex:0 0 auto;background:var(--card);border-top:1px solid var(--linea);padding:14px 18px}
+  .cwrap{max-width:840px;margin:0 auto}
+  .ask{display:flex;gap:10px}
+  .ask input{flex:1;padding:13px 16px;border:1px solid #dcdee2;border-radius:12px;font-size:15px;outline:none;
+             font-family:inherit;transition:border-color .15s,box-shadow .15s}
+  .ask input:focus{border-color:var(--naranja);box-shadow:0 0 0 3px var(--soft)}
+  .ask button{background:var(--naranja);color:#fff;border:0;border-radius:12px;padding:0 22px;height:48px;
+        font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s}
+  .ask button:hover{filter:brightness(1.05)}
+  .ask button:disabled{opacity:.5;cursor:default}
+  .exp{margin-bottom:11px}
+  .exp summary{font-size:12.5px;color:var(--gris)}
+  .exprow{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px}
+  .exprow label{font-size:11px;color:var(--gris);display:block;margin-bottom:4px;font-weight:500}
+  select{padding:9px 11px;border:1px solid #dcdee2;border-radius:9px;font-size:13.5px;min-width:215px;font-family:inherit;background:#fff}
+  .btn2{background:var(--naranja);color:#fff;border:0;border-radius:9px;padding:0 16px;height:37px;font-weight:600;cursor:pointer;font-family:inherit}
+  .think{display:flex;align-items:center;gap:9px;color:var(--gris);font-size:13.5px}
+  .spin{width:15px;height:15px;border:2px solid var(--soft);border-top-color:var(--naranja);border-radius:50%;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">UL</div>
+  <div>
+    <h1>ULima360 · Analytics</h1>
+    <div class="sub">habla con tu data — modelo semántico gobernado</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="ghost" id="reset" title="Borra el contexto y empieza de cero">↺ Nueva consulta</button>
+</header>
+
+<div id="thread"><div class="inner" id="inner"></div></div>
+
+<div class="composer">
+  <div class="cwrap">
+    <details class="exp" id="exp">
+      <summary>Explorar sin LLM (elige medida y dimensión)</summary>
+      <div class="exprow">
+        <div><label>Medida</label><select id="selMed"></select></div>
+        <div><label>Dimensión</label><select id="selDim"></select></div>
+        <button class="btn2" id="explorar">Graficar</button>
+      </div>
+    </details>
+    <div class="ask">
+      <input id="q" placeholder="Pregúntale a tu data…  luego puedes repreguntar: «ahora por facultad», «como línea»…" autocomplete="off"/>
+      <button id="go">Preguntar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API=location.origin;
+const PAL=['#E8520E','#2B2D33','#F49B6A','#7A8089','#F7C0A0'];
+const STARTERS=["suboferta por facultad","evolución de la matrícula por año",
+  "tasa de admisión por modalidad en 2024","aulas subutilizadas","deuda abierta por año"];
+const REFINES=["como línea","como tabla","top 5","por facultad","por carrera","solo 2024"];
+let history=[];      // [{pregunta, spec}]
+let charts=[];
+let busy=false;
+const inner=document.getElementById('inner');
+window.addEventListener('resize',()=>charts.forEach(c=>{try{c.resize()}catch(e){}}));
+
+// ---------- formato ----------
+function prettify(s){
+  if(s===null||s===undefined||s==='') return '(sin dato)';
+  s=String(s);
+  if(s===s.toUpperCase()){
+    s=s.replace(/^DEPARTAMENTO ACAD[EÉ]MICO DE\s+/,'').replace(/^CARRERA DE\s+/,'')
+       .replace(/^FACULTAD DE\s+/,'').replace(/^ESCUELA DE\s+/,'').replace(/^PROGRAMA DE\s+/,'')
+       .replace(/^MAESTR[IÍ]A EN\s+/,'Mg. ').replace(/^DOCTORADO EN\s+/,'Dr. ');
+    s=s.toLowerCase().replace(/(^|[\s\-\/(])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
+  }
+  return s;
+}
+const isPct=m=>/%/.test(m||''), isSoles=m=>/s\/|sol/i.test(m||'');
+function fmtVal(v,m){
+  if(typeof v!=='number') return v===null?'—':v;
+  if(isPct(m)) return (Math.round(v*10)/10).toLocaleString('es-PE')+'%';
+  if(isSoles(m)) return 'S/ '+Math.round(v).toLocaleString('es-PE');
+  if(Number.isInteger(v)) return v.toLocaleString('es-PE');
+  return (Math.round(v*100)/100).toLocaleString('es-PE');
+}
+function compact(v){const a=Math.abs(v);
+  if(a>=1e6)return (v/1e6).toFixed(a>=1e7?0:1)+'M'; if(a>=1e3)return (v/1e3).toFixed(0)+'k'; return ''+(Math.round(v*10)/10);}
+const trunc=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------- thread ----------
+function scroll(){const t=document.getElementById('thread');t.scrollTop=t.scrollHeight;}
+function emptyState(){
+  const c=STARTERS.map(s=>`<span class="chip">${s}</span>`).join('');
+  inner.innerHTML=`<div class="empty"><div class="big">¿Qué quieres saber?</div>
+    <p>Pregúntale a tu data en lenguaje natural. Cada respuesta trae su gráfico, y puedes
+    <b>repreguntar</b> para refinarla sin empezar de nuevo.</p>
+    <div class="chips">${c}</div></div>`;
+  inner.querySelectorAll('.chip').forEach(el=>el.onclick=()=>send(el.textContent));
+}
+function addUser(text){
+  const d=document.createElement('div');d.className='umsg';d.textContent=text;inner.appendChild(d);scroll();
+}
+function addThinking(){
+  const d=document.createElement('div');d.className='amsg';
+  d.innerHTML='<div class="think"><span class="spin"></span> Consultando el modelo…</div>';
+  inner.appendChild(d);scroll();return d;
+}
+function addMessage(title,html,isErr){
+  const d=document.createElement('div');d.className='amsg';
+  d.innerHTML=`<h2>${esc(title)}</h2><div class="narr ${isErr?'err':''}">${html}</div>`;
+  inner.appendChild(d);scroll();
+}
+
+function renderAssistant(node,payload){
+  const filas=payload.filas||[];
+  const viz=payload.viz||{tipo:'tabla',series:[]};
+  const cols=payload.columnas||(filas[0]?Object.keys(filas[0]):[]);
+  const series=(viz.series&&viz.series.length)?viz.series:cols.filter(c=>typeof filas[0]?.[c]==='number');
+  const x=viz.x||cols.find(c=>!series.includes(c))||cols[0];
+
+  let body=`<h2>${esc(payload.titulo||'Resultado')}</h2>`;
+  if(payload.narrativa) body+=`<div class="narr">${esc(payload.narrativa)}</div>`;
+
+  const isKpi=viz.tipo==='kpi'||(filas.length===1&&series.length===1&&!viz.x);
+  const isTable=viz.tipo==='tabla';
+  if(isKpi){
+    body+=`<div class="kpi"><span class="num">${fmtVal(filas[0]?.[series[0]],series[0])}</span><span class="lbl">${esc(series[0])}</span></div>`;
+  } else if(!isTable){
+    body+=`<div class="chartbox"></div>`;
+  }
+  body+=tableHtml(cols,filas,series, isTable);
+  body+=`<details><summary>Ver consulta (spec + DAX)</summary><pre>${esc('SPEC\n'+JSON.stringify(payload.spec,null,2)+'\n\nDAX\n'+(payload.dax||''))}</pre></details>`;
+  body+=`<div class="refine"><span class="lbl">Refinar:</span>${REFINES.map(r=>`<span class="rchip">${r}</span>`).join('')}</div>`;
+  node.innerHTML=body;
+  node.querySelectorAll('.rchip').forEach(el=>el.onclick=()=>send(el.textContent));
+
+  if(!isKpi&&!isTable){
+    const div=node.querySelector('.chartbox');
+    const ch=buildChart(div,{filas,viz,cols,series,x});
+    if(ch) charts.push(ch);
+  }
+  scroll();
+}
+function tableHtml(cols,filas,series,open){
+  if(!filas.length) return '';
+  const numset=new Set(series);
+  const head=cols.map(c=>`<th class="${numset.has(c)?'num':''}">${esc(prettify(c))}</th>`).join('');
+  const rows=filas.slice(0,60).map(r=>'<tr>'+cols.map(c=>
+     `<td class="${numset.has(c)?'num':''}">${numset.has(c)?fmtVal(r[c],c):esc(prettify(r[c]))}</td>`).join('')+'</tr>').join('');
+  const t=`<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+  if(open) return t;
+  return `<details><summary>Ver datos (${filas.length} ${filas.length===1?'fila':'filas'})</summary>${t}</details>`;
+}
+function buildChart(div,{filas,viz,cols,series,x}){
+  const ch=echarts.init(div);
+  const base=o=>Object.assign({color:PAL,textStyle:{fontFamily:'Inter,sans-serif'},animationDuration:500},o);
+  if(viz.tipo==='circular'){
+    ch.setOption(base({tooltip:{trigger:'item',formatter:p=>`${prettify(p.name)}<br/><b>${fmtVal(p.value,series[0])}</b> (${p.percent}%)`},
+      legend:{type:'scroll',bottom:0,textStyle:{color:'#697079'}},
+      series:[{type:'pie',radius:['42%','68%'],center:['50%','45%'],itemStyle:{borderColor:'#fff',borderWidth:2},
+        label:{formatter:p=>prettify(p.name),color:'#4b5159'},
+        data:filas.map((r,i)=>({name:r[x],value:r[series[0]],itemStyle:{color:PAL[i%PAL.length]}}))}]}));
+    return ch;
+  }
+  const isLine=viz.tipo==='linea'||viz.tipo==='area';
+  const cats=filas.map(r=>prettify(r[x]));
+  const maxLen=Math.max(0,...cats.map(c=>c.length));
+  const horiz=!isLine&&(filas.length>7||maxLen>14);
+
+  // escalas: si se mezclan % con conteos/soles, cada tipo va a su propio eje de valor
+  const kinds=series.map(m=>isPct(m)?'pct':isSoles(m)?'soles':'count');
+  const primary=kinds[0];
+  const mixed=series.length>1 && new Set(kinds).size>1;
+  const axOf=i=>(mixed && kinds[i]!==primary)?1:0;
+
+  const s=series.map((m,i)=>{const o={name:m,type:isLine?'line':'bar',smooth:true,
+    areaStyle:viz.tipo==='area'?{opacity:.12}:undefined,symbolSize:6,
+    itemStyle:{color:PAL[i%PAL.length],borderRadius:isLine?0:(horiz?[0,4,4,0]:[4,4,0,0])},
+    lineStyle:isLine?{width:2.5}:undefined,barMaxWidth:26,
+    label:(!isLine&&series.length===1)?{show:true,position:horiz?'right':'top',color:'#4b5159',fontSize:11,formatter:p=>fmtVal(p.value,m)}:{show:false},
+    data:filas.map(r=>r[m])};
+    if(horiz) o.xAxisIndex=axOf(i); else o.yAxisIndex=axOf(i); return o;});
+
+  const valAxis=(kind,side,sec)=>({type:'value',position:side,
+    axisLabel:{color:'#9aa0a8',formatter:kind==='pct'?(v=>v+'%'):compact},
+    splitLine:sec?{show:false}:{lineStyle:{color:'#eef0f2'}},axisLine:{show:false},axisTick:{show:false}});
+  let vAxes;
+  if(mixed){const k2=kinds.find(k=>k!==primary);
+    vAxes=[valAxis(primary,horiz?'bottom':'left',false), valAxis(k2,horiz?'top':'right',true)];}
+  else vAxes=[valAxis(primary,horiz?'bottom':'left',false)];
+
+  const catAxis={type:'category',data:cats,axisTick:{show:false},axisLine:{lineStyle:{color:'#e9eaed'}},
+    axisLabel:{color:'#5b626b',formatter:v=>trunc(v,horiz?26:12),interval:0,rotate:(!horiz&&maxLen>6)?35:0,fontSize:11}};
+  ch.setOption(base({
+    grid:{left:6,right:(horiz?44:(mixed?30:18)),top:series.length>1?32:12,bottom:6,containLabel:true},
+    legend:series.length>1?{top:0,textStyle:{color:'#697079'},icon:'roundRect'}:undefined,
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:ps=>{let h=`<b>${ps[0].axisValueLabel}</b>`;
+      ps.forEach(p=>h+=`<br/>${p.marker} ${p.seriesName}: <b>${fmtVal(p.value,p.seriesName)}</b>`);return h;}},
+    xAxis:horiz?vAxes:catAxis, yAxis:horiz?Object.assign({inverse:true},catAxis):vAxes, series:s
+  }),true);
+  const h=horiz?Math.max(300,filas.length*30+60):360;
+  div.style.height=h+'px'; ch.resize();
+  return ch;
+}
+
+// ---------- enviar ----------
+async function send(text){
+  text=(text||'').trim(); if(!text||busy) return;
+  if(inner.querySelector('.empty')) inner.innerHTML='';
+  busy=true; const go=document.getElementById('go'); go.disabled=true;
+  addUser(text); const t=addThinking();
+  try{
+    const r=await fetch(API+'/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pregunta:text,historial:history.slice(-6)})});
+    const d=await r.json();
+    if(d.intencion&&d.intencion!=='consulta'){
+      t.innerHTML=`<h2>${d.intencion==='aclarar'?'Necesito precisar':'Fuera de alcance'}</h2>
+        <div class="narr">${esc(d.mensaje||'Reformula la pregunta.').replace(/\n/g,'<br/>')}</div>`;
+      history.push({pregunta:text,spec:null});
+    } else if(d.ok){
+      renderAssistant(t,d);
+      history.push({pregunta:text,spec:d.spec});
+    } else {
+      t.innerHTML=`<h2 class="err">No se pudo resolver</h2><div class="narr err">${esc((d.errores||[]).join(' · '))}</div>`;
+      history.push({pregunta:text,spec:null});
+    }
+  }catch(e){ t.innerHTML=`<h2 class="err">Error</h2><div class="narr err">${esc(String(e))}</div>`; }
+  busy=false; go.disabled=false; scroll();
+}
+
+// ---------- explorar (determinista) ----------
+async function explorar(){
+  if(busy) return;
+  const m=document.getElementById('selMed').value;
+  const dv=document.getElementById('selDim').value; if(!m||!dv) return;
+  const [tabla,columna]=dv.split('|');
+  const label=`${m} por ${columna}`;
+  if(inner.querySelector('.empty')) inner.innerHTML='';
+  busy=true; addUser('[explorar] '+label); const t=addThinking();
+  const spec={medidas:[m],dimensiones:[{tabla,columna}],orden:m,orden_dir:'desc',topn:15};
+  try{
+    const r=await fetch(API+'/api/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(spec)});
+    const d=await r.json();
+    if(d.ok){ d.titulo=label; d.narrativa='Top 15 por '+m+'. Puedes refinar por chat (p.ej. «como línea», «solo 2024»).';
+      d.viz={tipo:'barra',x:columna,series:[m]}; d.spec=spec; renderAssistant(t,d);
+      history.push({pregunta:label,spec:spec}); }
+    else { t.innerHTML=`<h2 class="err">No se pudo</h2><div class="narr err">${esc((d.errores||[]).join(' · '))}</div>`; }
+  }catch(e){ t.innerHTML=`<h2 class="err">Error</h2><div class="narr err">${esc(String(e))}</div>`; }
+  busy=false; scroll();
+}
+
+// ---------- reset ----------
+function reset(){
+  history=[]; charts.forEach(c=>{try{c.dispose()}catch(e){}}); charts=[];
+  document.getElementById('q').value=''; emptyState(); scroll();
+}
+
+// ---------- wiring ----------
+document.getElementById('go').onclick=()=>{const q=document.getElementById('q');send(q.value);q.value='';};
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'){const q=e.target;send(q.value);q.value='';}});
+document.getElementById('explorar').onclick=explorar;
+document.getElementById('reset').onclick=reset;
+
+async function loadCat(){
+  const CAT=await (await fetch(API+'/api/catalog')).json();
+  const med=document.getElementById('selMed'),dim=document.getElementById('selDim');
+  CAT.medidas.forEach(m=>{const o=document.createElement('option');o.value=m.medida;o.textContent=m.medida+' — '+m.tabla;med.appendChild(o);});
+  CAT.tablas.forEach(t=>{ if(t.gobierno&&t.gobierno.length)return;
+    t.columnas.forEach(c=>{ if(c.es_identificador)return;
+      const o=document.createElement('option');o.value=t.tabla+'|'+c.columna;o.textContent=c.columna+'  ('+t.tabla+')';dim.appendChild(o);});});
+}
+emptyState(); loadCat();
+</script>
+</body>
+</html>
