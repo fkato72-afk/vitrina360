@@ -1,0 +1,35 @@
+# vitrina360 en el VPS de Hostinger (Traefik host-mode + Let's Encrypt automatico).
+# Traefik ya corre en /docker/traefik: entrypoints web(:80)/websecure(:443),
+# redireccion 80->443 y certresolver "letsencrypt" (HTTP-01). No hace falta
+# nginx/certbot: Traefik enruta por las labels y emite el cert solo.
+#
+# Construye la imagen desde GitHub (repo publico, sin secretos).
+# Los valores reales (secretos + ids + basic-auth) viven en el ENV del proyecto
+# (Hostinger -> Manage -> Environment), NUNCA en este archivo ni en el repo.
+services:
+  vitrina360:
+    build: https://github.com/fkato72-afk/vitrina360.git#main
+    restart: unless-stopped
+    environment:
+      - VITRINA_MODEL=claude-sonnet-4-6
+      - VITRINA_DATASET_ID=${VITRINA_DATASET_ID}
+      - FABRIC_TENANT_ID=${FABRIC_TENANT_ID}
+      - FABRIC_SP_CLIENT_ID=${FABRIC_SP_CLIENT_ID}
+      - FABRIC_SP_CLIENT_SECRET=${FABRIC_SP_CLIENT_SECRET}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - VITRINA_CORS=https://vitrina360.fkg72.com
+      - VITRINA_AUDIT_PATH=/app/audit/audit.log.jsonl
+    volumes:
+      - vitrina-audit:/app/audit
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.vitrina360.rule=Host(`vitrina360.fkg72.com`)"
+      - traefik.http.routers.vitrina360.entrypoints=websecure
+      - traefik.http.routers.vitrina360.tls.certresolver=letsencrypt
+      - traefik.http.services.vitrina360.loadbalancer.server.port=8077
+      # gate de prueba (basic-auth) antes de poner SSO Entra ID:
+      - traefik.http.routers.vitrina360.middlewares=vitrina360-auth
+      - traefik.http.middlewares.vitrina360-auth.basicauth.users=${BASIC_AUTH_USERS}
+
+volumes:
+  vitrina-audit:
