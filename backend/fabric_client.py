@@ -16,7 +16,11 @@ import urllib.error
 FABRIC_DIR = r"X:\_modernizacion\fabric"  # solo modo dev (cache device-code local)
 
 PBI_SCOPES = ["https://analysis.windows.net/powerbi/api/.default"]
-EXEC_URL = "https://api.powerbi.com/v1.0/myorg/datasets/{dsid}/executeQueries"
+# Un service principal SOLO puede usar el endpoint cualificado por workspace (grupo);
+# el de "My workspace" (sin grupo) le devuelve 401 PowerBINotAuthorized. La ruta con
+# grupo sirve para SP Y para usuario, asi que se prefiere siempre que haya workspace.
+EXEC_URL_GROUP = "https://api.powerbi.com/v1.0/myorg/groups/{gid}/datasets/{dsid}/executeQueries"
+EXEC_URL = "https://api.powerbi.com/v1.0/myorg/datasets/{dsid}/executeQueries"  # fallback dev (usuario)
 
 
 def _dataset_id():
@@ -32,6 +36,21 @@ def _dataset_id():
 
 
 DATASET_ID = _dataset_id()
+
+
+def _workspace_id():
+    # 1) env var (despliegue: el contenedor no trae fabric_ids.json);  2) fabric_ids.json local (dev)
+    env = os.environ.get("VITRINA_WORKSPACE_ID")
+    if env:
+        return env
+    try:
+        with open(os.path.join(FABRIC_DIR, "fabric_ids.json"), encoding="utf-8") as f:
+            return json.load(f).get("workspace_id")
+    except Exception:
+        return None
+
+
+WORKSPACE_ID = _workspace_id()
 
 
 def token():
@@ -73,20 +92,23 @@ def login():
           flush=True)
 
 
-def execute_dax(dax, dataset_id=None, impersonate=None, timeout=90):
+def execute_dax(dax, dataset_id=None, workspace_id=None, impersonate=None, timeout=90):
     """Ejecuta una consulta DAX y devuelve filas como lista de dicts.
 
     impersonate: UPN para correr con identidad efectiva (RLS). None = identidad del servicio.
     """
     dataset_id = dataset_id or DATASET_ID
+    gid = workspace_id or WORKSPACE_ID
     tok = token()
     if not tok:
         raise RuntimeError("Sin token Power BI. Corre una vez:  python -c \"import fabric_client as c; c.login()\"")
     body = {"queries": [{"query": dax}], "serializerSettings": {"includeNulls": True}}
     if impersonate:
         body["impersonatedUserName"] = impersonate
+    # con workspace -> sirve para SP y usuario; sin el -> solo "My workspace" (dev/usuario)
+    url = EXEC_URL_GROUP.format(gid=gid, dsid=dataset_id) if gid else EXEC_URL.format(dsid=dataset_id)
     req = urllib.request.Request(
-        EXEC_URL.format(dsid=dataset_id),
+        url,
         data=json.dumps(body).encode("utf-8"),
         headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
         method="POST",
