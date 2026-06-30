@@ -22,6 +22,10 @@ Reglas:
   (cambiar dimension, agregar/quitar un filtro o anio, cambiar el orden, el tipo de grafico o el
   top N, agregar/quitar una medida), PARTE del ultimo spec generado y cambia SOLO lo necesario,
   conservando el resto. Si es claramente una pregunta nueva, ignora el contexto previo.
+- EN UN AJUSTE conserva el MISMO viz.tipo del spec anterior, SALVO que el usuario pida
+  explicitamente otro tipo ("como linea", "en barras", "como tabla", "circular"). Ampliar el
+  rango de anios, agregar/quitar un filtro o un desglose NO es razon para cambiar barra<->linea:
+  si venias mostrando barras y solo te piden "de los ultimos 10 anios", SIGUEN siendo barras.
 - Usa SOLO medidas certificadas (las de la seccion "Medidas certificadas") por su nombre exacto.
 - Las medidas y las dimensiones deben salir de la MISMA tabla de hecho (sus columnas estan
   denormalizadas en el hecho). Ej: "matricula" -> fact_matricula_ciclo o FTE en fact_fte_periodo;
