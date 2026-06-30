@@ -3,34 +3,51 @@
 # redireccion 80->443 y certresolver "letsencrypt" (HTTP-01). No hace falta
 # nginx/certbot: Traefik enruta por las labels y emite el cert solo.
 #
-# Construye la imagen desde GitHub (repo publico, sin secretos).
-# Los valores reales (secretos + ids + basic-auth) viven en el ENV del proyecto
-# (Hostinger -> Manage -> Environment), NUNCA en este archivo ni en el repo.
+# La imagen se HORNEA en CI (GitHub Action -> ghcr.io/fkato72-afk/vitrina360:latest)
+# porque Hostinger NO construye desde contexto git; el VPS solo la jala (image:).
+# Los valores reales (cert, key, ids, secret-de-sesion, semilla, basic-auth) viven
+# en el ENV del proyecto (Hostinger -> Manage -> Environment), NUNCA aqui ni en el repo.
+#
+# IMPORTANTE (gotcha hPanel): cada variable debe estar LISTADA aqui con ${...}; si
+# no se referencia, no llega al contenedor aunque este en el ENV de hPanel.
 services:
   vitrina360:
-    build: https://github.com/fkato72-afk/vitrina360.git#main
+    image: ghcr.io/fkato72-afk/vitrina360:latest
     restart: unless-stopped
     environment:
       - VITRINA_MODEL=claude-sonnet-4-6
+      # --- Fabric (cero secreto: certificado del SP + Workspace identity en la conexion) ---
       - VITRINA_DATASET_ID=${VITRINA_DATASET_ID}
       - VITRINA_WORKSPACE_ID=${VITRINA_WORKSPACE_ID}
       - FABRIC_TENANT_ID=${FABRIC_TENANT_ID}
       - FABRIC_SP_CLIENT_ID=${FABRIC_SP_CLIENT_ID}
-      - FABRIC_SP_CLIENT_SECRET=${FABRIC_SP_CLIENT_SECRET}
+      - FABRIC_SP_CERT_KEY_B64=${FABRIC_SP_CERT_KEY_B64}
+      - FABRIC_SP_CERT_THUMBPRINT=${FABRIC_SP_CERT_THUMBPRINT}
+      # --- LLM ---
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # --- App ---
       - VITRINA_CORS=https://vitrina360.fkg72.com
       - VITRINA_AUDIT_PATH=/app/audit/audit.log.jsonl
+      # --- Seguridad Fase 1 (auth + RLS por rol) ---
+      - VITRINA_JWT_SECRET=${VITRINA_JWT_SECRET}
+      - VITRINA_COOKIE_SECURE=1
+      - VITRINA_IDENTIDAD_DB=/app/datos/identidad.db
+      - VITRINA_SCOPE_VALORES=/app/datos/scope_valores.json
+      - VITRINA_SEED_B64=${VITRINA_SEED_B64}
+      - VITRINA_ADMIN_PASSWORD=${VITRINA_ADMIN_PASSWORD}
     volumes:
       - vitrina-audit:/app/audit
+      - vitrina-identidad:/app/datos     # identidad.db + credenciales + scope_valores (persisten redeploys)
     labels:
       - traefik.enable=true
       - "traefik.http.routers.vitrina360.rule=Host(`vitrina360.fkg72.com`)"
       - traefik.http.routers.vitrina360.entrypoints=websecure
       - traefik.http.routers.vitrina360.tls.certresolver=letsencrypt
       - traefik.http.services.vitrina360.loadbalancer.server.port=8077
-      # gate de prueba (basic-auth) antes de poner SSO Entra ID:
+      # gate de prueba (basic-auth de Traefik) delante; la app ya tiene su propio login por rol.
       - traefik.http.routers.vitrina360.middlewares=vitrina360-auth
       - traefik.http.middlewares.vitrina360-auth.basicauth.users=${BASIC_AUTH_USERS}
 
 volumes:
   vitrina-audit:
+  vitrina-identidad:

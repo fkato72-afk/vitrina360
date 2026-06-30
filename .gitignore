@@ -28,3 +28,9 @@ __pycache__/
 *.pyc
 web/node_modules/
 web/dist/
+
+# Seguridad / identidad (Fase 1) — datos institucionales y secretos, NUNCA al repo
+backend/seguridad/identidad.db
+backend/seguridad/credenciales_iniciales.txt
+backend/seguridad/autoridades_db2.csv
+backend/seguridad/scope_valores.json

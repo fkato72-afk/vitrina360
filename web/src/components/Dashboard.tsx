@@ -1,32 +1,24 @@
 import { useEffect, useState } from 'react'
 import Chart from './Chart'
 import { runQuery, prettify, fmtVal, type Filtro } from '../lib'
+import type { DashCfg, Panel as PanelCfg } from '../dashboards'
 
-const TABLA = 'fact_demanda_seccion'
-const KPIS = ['Secciones', 'Llenado Prom %', 'Suboferta %']
-const PANELS = [
-  { titulo: 'Llenado promedio por departamento', medida: 'Llenado Prom %', dim: 'departamento_academico', viz: 'barra', topn: 15, wide: true },
-  { titulo: 'Llenado promedio por año', medida: 'Llenado Prom %', dim: 'anio', viz: 'linea', orden: 'anio', dir: 'asc', topn: 50 },
-  { titulo: 'Secciones por tipo de curso', medida: 'Secciones', dim: 'tipo_curso', viz: 'barra', topn: 12 },
-  { titulo: 'Suboferta por tipo de dependencia', medida: 'Suboferta %', dim: 'tipo_dependencia', viz: 'barra', topn: 12 },
-  { titulo: 'Secciones por turno', medida: 'Secciones', dim: 'turno', viz: 'circular', topn: 8 },
-]
-
-export default function Dashboard() {
+export default function Dashboard({ cfg }: { cfg: DashCfg }) {
   const [filtros, setFiltros] = useState<Filtro[]>([])
+  useEffect(() => { setFiltros([]) }, [cfg.id])   // limpiar filtros al cambiar de dominio
   const pick = (col: string, val: any) =>
-    setFiltros((f) => [...f.filter((x) => x.columna !== col), { tabla: TABLA, columna: col, op: '=', valor: val }])
+    setFiltros((f) => [...f.filter((x) => x.columna !== col), { tabla: cfg.tabla, columna: col, op: '=', valor: val }])
   const remove = (col: string) => setFiltros((f) => f.filter((x) => x.columna !== col))
 
   return (
     <div className="dash">
       <div className="dash-head">
-        <h2>Demanda académica</h2>
-        <div className="muted">Oferta y llenado de secciones · haz clic en cualquier barra para filtrar todo el tablero</div>
+        <h2>{cfg.titulo}</h2>
+        <div className="muted">{cfg.sub} · haz clic en cualquier barra para filtrar todo el tablero</div>
       </div>
       <FilterBar filtros={filtros} onRemove={remove} onClear={() => setFiltros([])} />
-      <div className="kpis">{KPIS.map((k) => <Kpi key={k} medida={k} filtros={filtros} />)}</div>
-      <div className="grid">{PANELS.map((p, i) => <Panel key={i} cfg={p} filtros={filtros} onPick={pick} />)}</div>
+      <div className="kpis">{cfg.kpis.map((k) => <Kpi key={k} medida={k} filtros={filtros} />)}</div>
+      <div className="grid">{cfg.panels.map((p, i) => <Panel key={cfg.id + i} tabla={cfg.tabla} cfg={p} filtros={filtros} onPick={pick} />)}</div>
     </div>
   )
 }
@@ -58,20 +50,20 @@ function Kpi({ medida, filtros }: { medida: string; filtros: Filtro[] }) {
   return <div className="kpicard"><div className="kv">{load ? '…' : fmtVal(v, medida)}</div><div className="kl">{medida}</div></div>
 }
 
-function Panel({ cfg, filtros, onPick }: { cfg: any; filtros: Filtro[]; onPick: (c: string, v: any) => void }) {
+function Panel({ tabla, cfg, filtros, onPick }: { tabla: string; cfg: PanelCfg; filtros: Filtro[]; onPick: (c: string, v: any) => void }) {
   const [p, setP] = useState<any>(null)
   const [load, setLoad] = useState(true)
   const applied = filtros.filter((f) => f.columna !== cfg.dim)
   useEffect(() => {
     let on = true; setLoad(true)
-    const spec = { medidas: [cfg.medida], dimensiones: [{ tabla: TABLA, columna: cfg.dim }], filtros: applied, orden: cfg.orden || cfg.medida, orden_dir: cfg.dir || 'desc', topn: cfg.topn || 15 }
+    const spec = { medidas: [cfg.medida], dimensiones: [{ tabla, columna: cfg.dim }], filtros: applied, orden: cfg.orden || cfg.medida, orden_dir: cfg.dir || 'desc', topn: cfg.topn || 15 }
     runQuery(spec).then((d) => {
       if (!on) return
       if (d.ok) { d.viz = { tipo: cfg.viz, x: cfg.dim, series: [cfg.medida] }; d.titulo = cfg.titulo }
       setP(d); setLoad(false)
     })
     return () => { on = false }
-  }, [JSON.stringify(applied)])
+  }, [JSON.stringify(applied), cfg.dim, cfg.medida])
 
   return (
     <div className={'panel' + (cfg.wide ? ' wide' : '')}>

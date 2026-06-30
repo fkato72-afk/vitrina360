@@ -13,13 +13,43 @@ export type Payload = {
 }
 
 const post = (url: string, body: any) =>
-  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    .then((r) => r.json())
+  fetch(url, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }).then((r) => r.json())
 
-export const getCatalog = () => fetch('/api/catalog').then((r) => r.json())
+export const getCatalog = () => fetch('/api/catalog', { credentials: 'include' }).then((r) => r.json())
 export const ask = (pregunta: string, historial: any[] = []): Promise<Payload> =>
   post('/api/ask', { pregunta, historial })
 export const runQuery = (spec: Spec): Promise<Payload> => post('/api/query', spec)
+
+// ---- auth / sesion ----
+export type Scope = { nivel: 'total' | 'facultad' | 'carrera'; facultades?: string[]; carreras?: string[] }
+export type Perfil = { username: string; nombre: string; co_pers?: number; roles: string[]; scope: Scope; must_change: boolean }
+
+export const login = (username: string, password: string) =>
+  post('/api/auth/login', { username, password }) as Promise<{ ok: boolean; perfil?: Perfil; error?: string }>
+export const logout = () => post('/api/auth/logout', {})
+export const me = () =>
+  fetch('/api/auth/me', { credentials: 'include' }).then((r) => (r.ok ? r.json() : { ok: false })) as Promise<{ ok: boolean; perfil?: Perfil }>
+export const cambiarClave = (actual: string, nueva: string) =>
+  post('/api/auth/cambiar-clave', { actual, nueva }) as Promise<{ ok: boolean; perfil?: Perfil; error?: string }>
+
+// Etiqueta legible del alcance, para el badge del topbar.
+export function scopeLabel(p?: Perfil): string {
+  if (!p) return ''
+  const s = p.scope
+  if (s.nivel === 'total') return 'Visibilidad total'
+  if (s.nivel === 'facultad') return (s.facultades || []).map((f) => prettify(f)).join(', ') || 'Sin facultad'
+  return (s.carreras || []).map((c) => prettify(c)).join(', ') || 'Sin carrera'
+}
+export function rolLabel(p?: Perfil): string {
+  const map: Record<string, string> = {
+    admin: 'Administrador', rector: 'Rector', vicerrector: 'Vicerrector',
+    decano: 'Decano', director_carrera: 'Director de carrera', secretario_academico: 'Secretario académico',
+  }
+  return (p?.roles || []).map((r) => map[r] || r).join(' · ')
+}
 
 // ---- formato ----
 export function prettify(s: any): string {
