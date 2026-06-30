@@ -19,7 +19,8 @@ OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- gobierno: que es sensible (Ley 29733) -------------------------------------
 ID_COLUMNS = {"id_persona", "id_alumno", "co_alum", "co_pstl", "co_pers",
-              "co_trab", "co_docente", "co_docente_prin"}
+              "co_trab", "co_docente", "co_docente_prin",
+              "co_cole", "Código de colegio"}
 # Tablas que NO deben listarse a grano de fila ni siquiera por id (requieren rol):
 SENSITIVE_TABLES = {"fact_riesgo_desercion", "fact_socioeconomico"}   # watchlist + nivel socioeconomico (Ley 29733)
 # Dominios sensibles (financiero / identidad) -> permitidos AGREGADOS, no a fila:
