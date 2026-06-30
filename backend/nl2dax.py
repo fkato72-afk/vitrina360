@@ -6,6 +6,7 @@ Requiere ANTHROPIC_API_KEY. Modelo configurable con VITRINA_MODEL (default sonne
 """
 import os
 import json
+import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODEL = os.environ.get("VITRINA_MODEL", "claude-sonnet-4-6")
@@ -38,6 +39,12 @@ Reglas:
 - Tablas [RESTRINGIDA] o [FINANCIERA]: solo agregados; no las uses salvo que la pregunta lo pida.
 - FILTROS: agrega un filtro SOLO si el usuario lo pide explicitamente (un anio, una modalidad...).
   No inventes filtros. op debe ser uno de: = > >= < <= <> in. Para "in" usa "valores":[...].
+- TIEMPO RELATIVO: traduce SIEMPRE las expresiones relativas usando el ANIO ACTUAL del bloque
+  "CONTEXTO TEMPORAL" (NO uses tu conocimiento de que anio es hoy). "ultimos N anios" = filtro
+  'anio' >= (anio_actual - N + 1) (incluye el anio en curso; ej. con anio_actual=2026, "ultimos 3
+  anios" -> anio >= 2024, devolviendo 2024, 2025 y 2026). "este anio"/"anio actual" = anio = anio_actual;
+  "anio pasado"/"el anio anterior" = anio = anio_actual - 1. La narrativa y el titulo DEBEN nombrar
+  exactamente el mismo rango que el filtro (no menciones anios fuera del filtro ni omitas los incluidos).
 - DESGLOSE / SEPARAR POR ("separa/desglosa/abre/parte/divide por X", "por cada X", "diferenciado
   por X", "distinguiendo X"): AGREGA X como una dimension MAS en "dimensiones" CONSERVANDO las
   dimensiones que ya tenias (p.ej. el anio). Deja UNA sola medida. En "viz" manten x = la dimension
@@ -112,6 +119,22 @@ TOOL = {
 }
 
 
+def _system_con_fecha():
+    """SYSTEM + un bloque CONTEXTO TEMPORAL con la fecha de hoy (calculado por peticion
+    para que nunca quede obsoleto). El LLM no conoce la fecha real: sin esto calcula los
+    rangos relativos ("ultimos N anios", "este anio") desde su epoca de entrenamiento."""
+    hoy = datetime.date.today()
+    meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+             "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    ctx = (
+        "CONTEXTO TEMPORAL (autoritativo; usalo para todo calculo de tiempo relativo):\n"
+        "- Fecha de hoy: %d de %s de %d.\n"
+        "- ANIO ACTUAL = %d. Calcula desde aqui 'ultimos N anios', 'este anio', 'anio pasado'.\n\n"
+        % (hoy.day, meses[hoy.month - 1], hoy.year, hoy.year)
+    )
+    return ctx + SYSTEM
+
+
 def _client():
     import anthropic
     return anthropic.Anthropic()
@@ -144,7 +167,7 @@ def pregunta_a_spec(pregunta, errores_previos=None, historial=None):
     resp = _client().messages.create(
         model=MODEL,
         max_tokens=1500,
-        system=SYSTEM,
+        system=_system_con_fecha(),
         messages=msgs,
         tools=[TOOL],
         tool_choice={"type": "tool", "name": "responder"},
