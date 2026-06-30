@@ -59,12 +59,32 @@ def token():
     - Dev: cache device-code local (fabric_auth.py, DPAPI).
     """
     cid = os.environ.get("FABRIC_SP_CLIENT_ID")
-    sec = os.environ.get("FABRIC_SP_CLIENT_SECRET")
     tid = os.environ.get("FABRIC_TENANT_ID")
-    if cid and sec and tid:
+    sec = os.environ.get("FABRIC_SP_CLIENT_SECRET")
+    # Cert (PREFERIDO, sin password en claro): PEM con la llave privada + thumbprint SHA1.
+    cert_path = os.environ.get("FABRIC_SP_CERT_PATH")
+    cert_b64 = os.environ.get("FABRIC_SP_CERT_KEY_B64")  # PEM en base64 (contenedor/hPanel, sin archivo)
+    cert_thumb = os.environ.get("FABRIC_SP_CERT_THUMBPRINT")
+    have_cert = bool(cert_thumb and (cert_path or cert_b64))
+    if cid and tid and (have_cert or sec):
         import msal
+        if have_cert:
+            if cert_b64:
+                import base64
+                priv = base64.b64decode(cert_b64).decode("utf-8")
+            else:
+                with open(cert_path, "r", encoding="utf-8") as f:
+                    priv = f.read()
+            cred = {"private_key": priv,
+                    "thumbprint": cert_thumb.replace(":", "").strip()}
+            pub = os.environ.get("FABRIC_SP_CERT_PUBLIC_PATH")  # opcional: x5c/SNI, rota más fácil
+            if pub and os.path.exists(pub):
+                with open(pub, "r", encoding="utf-8") as f:
+                    cred["public_certificate"] = f.read()
+        else:
+            cred = sec
         app = msal.ConfidentialClientApplication(
-            cid, authority="https://login.microsoftonline.com/" + tid, client_credential=sec)
+            cid, authority="https://login.microsoftonline.com/" + tid, client_credential=cred)
         r = app.acquire_token_for_client(scopes=PBI_SCOPES)
         return r.get("access_token")
     try:

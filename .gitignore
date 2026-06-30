@@ -2,6 +2,8 @@
 .env
 deploy/.env
 fabric_token_cache.bin
+certs/
+backend/certs/
 
 # Datos institucionales de Ulima — el catalogo se regenera del modelo al arrancar
 # (mantiene el repo generico / publico-seguro)
@@ -11,6 +13,8 @@ backend/catalogo_llm.md
 # Local / diagnostico (traen nombres de tablas Ulima o ids del workspace)
 _test_sp.py
 _diag_sp.py
+_test_sql_sp.py
+_refresh_sp.py
 backend/probe.py
 backend/_probe_ask.py
 backend/fabric_ids.json
