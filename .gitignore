@@ -34,3 +34,5 @@ backend/seguridad/identidad.db
 backend/seguridad/credenciales_iniciales.txt
 backend/seguridad/autoridades_db2.csv
 backend/seguridad/scope_valores.json
+
+backend/seguridad/SEED_B64.txt
