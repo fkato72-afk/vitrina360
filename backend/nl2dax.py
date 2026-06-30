@@ -34,6 +34,14 @@ Reglas:
 - Tablas [RESTRINGIDA] o [FINANCIERA]: solo agregados; no las uses salvo que la pregunta lo pida.
 - FILTROS: agrega un filtro SOLO si el usuario lo pide explicitamente (un anio, una modalidad...).
   No inventes filtros. op debe ser uno de: = > >= < <= <> in. Para "in" usa "valores":[...].
+- DESGLOSE / SEPARAR POR ("separa/desglosa/abre/parte/divide por X", "por cada X", "diferenciado
+  por X", "distinguiendo X"): AGREGA X como una dimension MAS en "dimensiones" CONSERVANDO las
+  dimensiones que ya tenias (p.ej. el anio). Deja UNA sola medida. En "viz" manten x = la dimension
+  principal que ya mostrabas (la temporal si la hay) y pon en "viz.series_dim" el NOMBRE EXACTO de
+  la columna que separa (la nueva). El desglose DEBE reflejarse en "dimensiones": NO basta con
+  cambiar el titulo o la narrativa. Ej: "ingresantes por anio" + "separalo por ciclo" ->
+  dimensiones=[{..,'anio'},{..,'nro_ciclo'}], viz.x='anio', viz.series_dim='nro_ciclo'. Para "por
+  ciclo de ingreso" usa la columna 'nro_ciclo' (1/2), NO 'id_ciclo' (que mezcla anio).
 - UN SOLO filtro de tiempo: si filtras por un ciclo/periodo (id_ciclo, p.ej. 20252 para "2025-2"),
   NO agregues ademas un filtro de anio: el ciclo ya implica el anio. Para "ciclo 2025-2" usa solo
   id_ciclo=20252. Filtra por anio SOLO cuando el usuario pide un anio sin especificar ciclo.
@@ -87,6 +95,8 @@ TOOL = {
                     "tipo": {"type": "string", "enum": ["barra", "linea", "kpi", "circular", "area", "tabla"]},
                     "x": {"type": ["string", "null"]},
                     "series": {"type": "array", "items": {"type": "string"}},
+                    "series_dim": {"type": ["string", "null"],
+                                   "description": "nombre EXACTO de la columna que SEPARA en series (clustered); usar al desglosar por una 2.a dimension"},
                 },
                 "required": ["tipo", "series"],
             },

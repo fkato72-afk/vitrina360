@@ -8,8 +8,10 @@ function buildOption(payload: any) {
   const filas: any[] = payload.filas || []
   const viz = payload.viz || { tipo: 'barra', series: [] }
   const cols: string[] = payload.columnas || (filas[0] ? Object.keys(filas[0]) : [])
-  const series: string[] = viz.series?.length ? viz.series : cols.filter((c) => typeof filas[0]?.[c] === 'number')
-  const x: string = viz.x || cols.find((c) => !series.includes(c)) || cols[0]
+  // Medidas (numericas) vs dimensiones (el resto). La x es la dimension principal.
+  const measures: string[] = viz.series?.length ? viz.series : cols.filter((c) => typeof filas[0]?.[c] === 'number')
+  const dimCols = cols.filter((c) => !measures.includes(c))
+  const x: string = (viz.x && cols.includes(viz.x)) ? viz.x : (dimCols[0] || cols[0])
   const rawCats = filas.map((r) => r[x])
   const base = (o: any) => ({ color: PAL, textStyle: { fontFamily: 'Inter,sans-serif' }, animationDuration: 500, ...o })
 
@@ -17,37 +19,66 @@ function buildOption(payload: any) {
     return {
       h: 340, rawCats, dimCol: x,
       option: base({
-        tooltip: { trigger: 'item', formatter: (p: any) => `${prettify(p.name)}<br/><b>${fmtVal(p.value, series[0])}</b> (${p.percent}%)` },
+        tooltip: { trigger: 'item', formatter: (p: any) => `${prettify(p.name)}<br/><b>${fmtVal(p.value, measures[0])}</b> (${p.percent}%)` },
         legend: { type: 'scroll', bottom: 0, textStyle: { color: '#697079' } },
         series: [{
           type: 'pie', radius: ['42%', '68%'], center: ['50%', '45%'], itemStyle: { borderColor: '#fff', borderWidth: 2 },
           label: { formatter: (p: any) => prettify(p.name), color: '#4b5159' },
-          data: filas.map((r, i) => ({ name: r[x], value: r[series[0]], itemStyle: { color: PAL[i % PAL.length] } })),
+          data: filas.map((r, i) => ({ name: r[x], value: r[measures[0]], itemStyle: { color: PAL[i % PAL.length] } })),
         }],
       }),
     }
   }
 
   const isLine = viz.tipo === 'linea' || viz.tipo === 'area'
-  const cats = filas.map((r) => prettify(r[x]))
-  const maxLen = Math.max(0, ...cats.map((c) => c.length))
-  const horiz = !isLine && (filas.length > 7 || maxLen > 14)
 
-  const kinds = series.map((m) => (isPct(m) ? 'pct' : isSoles(m) ? 'soles' : 'count'))
+  // ¿Desglose por una 2.a dimension? -> barras/lineas AGRUPADAS (pivot de la dim en series).
+  // segCol = la dimension que separa: la indicada por el LLM (series_dim) o, si hay 2 dims, la otra.
+  const segCol: string | undefined = measures.length === 1
+    ? (viz.series_dim && dimCols.includes(viz.series_dim) && viz.series_dim !== x ? viz.series_dim
+       : (dimCols.length >= 2 ? dimCols.find((d) => d !== x) : undefined))
+    : undefined
+
+  // legend = nombres de cada serie; seriesData = sus valores; fmtFor = la medida con la que se formatea.
+  let legend: string[], seriesData: any[][], fmtFor: string[], cats: string[]
+  if (segCol) {
+    const measure = measures[0]
+    const xVals: any[] = []; filas.forEach((r) => { if (!xVals.some((v) => v === r[x])) xVals.push(r[x]) })
+    const segVals: any[] = []; filas.forEach((r) => { if (!segVals.some((v) => v === r[segCol])) segVals.push(r[segCol]) })
+    const cell = new Map<string, any>()
+    filas.forEach((r) => cell.set(String(r[x]) + '¦' + String(r[segCol]), r[measure]))
+    // Etiqueta de cada serie: "Ciclo N" cuando separa por ciclo; si no, el valor legible.
+    const segLabel = (v: any) => (/ciclo/i.test(segCol) ? `Ciclo ${v}` : prettify(v))
+    cats = xVals.map((v) => prettify(v))
+    legend = segVals.map(segLabel)
+    fmtFor = segVals.map(() => measure)
+    seriesData = segVals.map((sv) => xVals.map((xv) => { const val = cell.get(String(xv) + '¦' + String(sv)); return val === undefined ? null : val }))
+  } else {
+    cats = filas.map((r) => prettify(r[x]))
+    legend = measures
+    fmtFor = measures
+    seriesData = measures.map((m) => filas.map((r) => r[m]))
+  }
+
+  const maxLen = Math.max(0, ...cats.map((c) => c.length))
+  // Horizontal solo en una sola dimension con muchas/largas categorias; el desglose va siempre vertical agrupado.
+  const horiz = !isLine && !segCol && (cats.length > 7 || maxLen > 14)
+
+  const kinds = fmtFor.map((m) => (isPct(m) ? 'pct' : isSoles(m) ? 'soles' : 'count'))
   const primary = kinds[0]
-  const mixed = series.length > 1 && new Set(kinds).size > 1
+  const mixed = legend.length > 1 && new Set(kinds).size > 1
   const axOf = (i: number) => (mixed && kinds[i] !== primary ? 1 : 0)
 
-  const s = series.map((m, i) => {
+  const s = legend.map((name, i) => {
     const o: any = {
-      name: m, type: isLine ? 'line' : 'bar', smooth: true,
+      name, type: isLine ? 'line' : 'bar', smooth: true,
       areaStyle: viz.tipo === 'area' ? { opacity: 0.12 } : undefined, symbolSize: 6,
       itemStyle: { color: PAL[i % PAL.length], borderRadius: isLine ? 0 : horiz ? [0, 4, 4, 0] : [4, 4, 0, 0] },
       lineStyle: isLine ? { width: 2.5 } : undefined, barMaxWidth: 26,
-      label: !isLine && series.length === 1
-        ? { show: true, position: horiz ? 'right' : 'top', color: '#4b5159', fontSize: 11, formatter: (p: any) => fmtVal(p.value, m) }
+      label: !isLine && legend.length === 1
+        ? { show: true, position: horiz ? 'right' : 'top', color: '#4b5159', fontSize: 11, formatter: (p: any) => fmtVal(p.value, fmtFor[i]) }
         : { show: false },
-      data: filas.map((r) => r[m]),
+      data: seriesData[i],
     }
     if (horiz) o.xAxisIndex = axOf(i); else o.yAxisIndex = axOf(i)
     return o
@@ -66,15 +97,15 @@ function buildOption(payload: any) {
     type: 'category', data: cats, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e9eaed' } },
     axisLabel: { color: '#5b626b', formatter: (v: string) => trunc(v, horiz ? 26 : 12), interval: 0, rotate: !horiz && maxLen > 6 ? 35 : 0, fontSize: 11 },
   }
-  const h = horiz ? Math.max(300, filas.length * 30 + 60) : 340
+  const h = horiz ? Math.max(300, cats.length * 30 + 60) : 340
   return {
     h, rawCats, dimCol: x,
     option: base({
-      grid: { left: 6, right: horiz ? 44 : mixed ? 30 : 18, top: series.length > 1 ? 32 : 12, bottom: 6, containLabel: true },
-      legend: series.length > 1 ? { top: 0, textStyle: { color: '#697079' }, icon: 'roundRect' } : undefined,
+      grid: { left: 6, right: horiz ? 44 : mixed ? 30 : 18, top: legend.length > 1 ? 32 : 12, bottom: 6, containLabel: true },
+      legend: legend.length > 1 ? { top: 0, textStyle: { color: '#697079' }, icon: 'roundRect' } : undefined,
       tooltip: {
         trigger: 'axis', axisPointer: { type: 'shadow' },
-        formatter: (ps: any[]) => { let html = `<b>${ps[0].axisValueLabel}</b>`; ps.forEach((p) => (html += `<br/>${p.marker} ${p.seriesName}: <b>${fmtVal(p.value, p.seriesName)}</b>`)); return html },
+        formatter: (ps: any[]) => { let html = `<b>${ps[0].axisValueLabel}</b>`; ps.forEach((p) => (html += `<br/>${p.marker} ${p.seriesName}: <b>${fmtVal(p.value, fmtFor[p.seriesIndex] ?? p.seriesName)}</b>`)); return html },
       },
       xAxis: horiz ? vAxes : catAxis,
       yAxis: horiz ? { inverse: true, ...catAxis } : vAxes,
