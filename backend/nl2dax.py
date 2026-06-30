@@ -34,6 +34,12 @@ Reglas:
 - Tablas [RESTRINGIDA] o [FINANCIERA]: solo agregados; no las uses salvo que la pregunta lo pida.
 - FILTROS: agrega un filtro SOLO si el usuario lo pide explicitamente (un anio, una modalidad...).
   No inventes filtros. op debe ser uno de: = > >= < <= <> in. Para "in" usa "valores":[...].
+- UN SOLO filtro de tiempo: si filtras por un ciclo/periodo (id_ciclo, p.ej. 20252 para "2025-2"),
+  NO agregues ademas un filtro de anio: el ciclo ya implica el anio. Para "ciclo 2025-2" usa solo
+  id_ciclo=20252. Filtra por anio SOLO cuando el usuario pide un anio sin especificar ciclo.
+- NOMBRES EXACTOS: copia el nombre de la columna TAL CUAL aparece en el catalogo, respetando
+  mayusculas y tildes (p.ej. 'Año', 'Programa', 'Departamento'). No lo pases a minusculas ni le
+  quites tildes ni cambies 'Año' por 'anio'.
 - ORDEN: "orden" es el nombre EXACTO de una medida o de una columna agrupada, SIN 'asc'/'desc'.
   La direccion va en "orden_dir" ("asc" o "desc"). Para evolucion temporal ordena por el periodo
   (anio/ciclo) en "asc".

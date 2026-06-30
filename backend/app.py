@@ -130,6 +130,11 @@ def _ejecutar(spec_dict, ses, pregunta=""):
                           "scope": ses.scope.to_dict(), "errores": spec_dict.get("errores"),
                           "tablas": sc_info.get("tablas")})
         return False, {"ok": False, "errores": spec_dict["errores"]}
+    # 1.5) Normaliza nombres de columna/medida al catalogo (anio->Año, etc.) ANTES de validar:
+    #      evita falsos "columna no existe" y DAX 400 por mayusculas/tildes/grafia equivalente.
+    reescrituras = governance.normalize_spec_columns(spec_dict)
+    if reescrituras:
+        governance.audit({"origen": "normalizacion", "usuario": usuario, "reescrituras": reescrituras})
     # 2) Gobierno compartido (agnostico al plano): valida ANTES de despachar.
     ok, errs, touched = governance.validate_spec(spec_dict, roles=roles)
     if not ok:

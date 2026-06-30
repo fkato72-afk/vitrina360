@@ -99,18 +99,25 @@ function Assistant({ p, onRefine }: { p: Payload; onRefine: (t: string) => void 
   const series: string[] = viz.series?.length ? viz.series : cols.filter((c) => typeof filas[0]?.[c] === 'number')
   const isKpi = viz.tipo === 'kpi' || (filas.length === 1 && series.length === 1 && !viz.x)
   const isTable = viz.tipo === 'tabla'
+  const isEmpty = filas.length === 0
   return (
     <div className="amsg">
       <h2>{p.titulo || 'Resultado'}</h2>
       {p.narrativa && <div className="narr">{p.narrativa}</div>}
-      {isKpi ? (
+      {isEmpty ? (
+        <div className="nodata">
+          <div className="nd-title">Sin datos para este corte</div>
+          <p>La consulta se ejecutó correctamente, pero no devolvió ninguna fila. Suele deberse a que el período aún no tiene datos cargados en el lago, o a que algún filtro (ciclo, facultad, carrera…) no coincide con los valores existentes.</p>
+          <p className="nd-hint">Prueba con otro período o quita un filtro. Puedes ver el corte exacto en «Ver consulta» más abajo.</p>
+        </div>
+      ) : isKpi ? (
         <div className="kpi"><span className="num">{fmtVal(filas[0]?.[series[0]], series[0])}</span><span className="lbl">{series[0]}</span></div>
       ) : isTable ? (
         <DataTable cols={cols} filas={filas} series={series} open />
       ) : (
         <Chart payload={p} />
       )}
-      {!isTable && filas.length > 0 && <DataTable cols={cols} filas={filas} series={series} />}
+      {!isEmpty && !isTable && filas.length > 0 && <DataTable cols={cols} filas={filas} series={series} />}
       <details><summary>Ver consulta (spec + DAX)</summary><pre>{'SPEC\n' + JSON.stringify(p.spec, null, 2) + '\n\nDAX\n' + (p.dax || '')}</pre></details>
       <div className="refine"><span className="rlbl">Refinar:</span>{REFINES.map((r) => <span key={r} className="rchip" onClick={() => onRefine(r)}>{r}</span>)}</div>
     </div>
