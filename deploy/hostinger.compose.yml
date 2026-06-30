@@ -44,9 +44,8 @@ services:
       - traefik.http.routers.vitrina360.entrypoints=websecure
       - traefik.http.routers.vitrina360.tls.certresolver=letsencrypt
       - traefik.http.services.vitrina360.loadbalancer.server.port=8077
-      # gate de prueba (basic-auth de Traefik) delante; la app ya tiene su propio login por rol.
-      - traefik.http.routers.vitrina360.middlewares=vitrina360-auth
-      - traefik.http.middlewares.vitrina360-auth.basicauth.users=${BASIC_AUTH_USERS}
+      # Basic-auth de Traefik RETIRADO (2026-06-30): la app ya tiene login real + RLS por rol.
+      # La autenticacion de la app (sesion JWT) es ahora la unica barrera.
 
 volumes:
   vitrina-audit:
