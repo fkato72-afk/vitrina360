@@ -8,8 +8,22 @@ function buildOption(payload: any) {
   const filas: any[] = payload.filas || []
   const viz = payload.viz || { tipo: 'barra', series: [] }
   const cols: string[] = payload.columnas || (filas[0] ? Object.keys(filas[0]) : [])
-  // Medidas (numericas) vs dimensiones (el resto). La x es la dimension principal.
-  const measures: string[] = viz.series?.length ? viz.series : cols.filter((c) => typeof filas[0]?.[c] === 'number')
+  // Medidas vs dimensiones. viz.series es solo una PISTA del LLM y puede no coincidir con
+  // los datos (incoherencia entre spec.medidas y viz.series -> grafico en blanco con todo
+  // null). Fuente de verdad = spec.medidas (lo que ejecuto el DAX, siempre esta en columnas).
+  // Tomamos las declaradas (viz.series + spec.medidas) que SI esten en columnas; si ninguna,
+  // caemos a columnas numericas EXCLUYENDO las dimensiones conocidas (anio/nro_ciclo son
+  // numericas pero NO son medidas).
+  const dimNames = new Set<string>([
+    ...((payload.spec?.dimensiones || []).map((d: any) => d.columna)),
+    ...(viz.x ? [viz.x] : []),
+    ...(viz.series_dim ? [viz.series_dim] : []),
+  ])
+  const declared: string[] = [...(viz.series || []), ...((payload.spec?.medidas) || [])]
+  const named: string[] = [...new Set(declared.filter((s: string) => cols.includes(s)))]
+  const measures: string[] = named.length
+    ? named
+    : cols.filter((c) => typeof filas[0]?.[c] === 'number' && !dimNames.has(c))
   const dimCols = cols.filter((c) => !measures.includes(c))
   const x: string = (viz.x && cols.includes(viz.x)) ? viz.x : (dimCols[0] || cols[0])
   const rawCats = filas.map((r) => r[x])

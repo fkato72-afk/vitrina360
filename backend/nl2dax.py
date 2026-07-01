@@ -28,9 +28,18 @@ Reglas:
   rango de anios, agregar/quitar un filtro o un desglose NO es razon para cambiar barra<->linea:
   si venias mostrando barras y solo te piden "de los ultimos 10 anios", SIGUEN siendo barras.
 - Usa SOLO medidas certificadas (las de la seccion "Medidas certificadas") por su nombre exacto.
-- Las medidas y las dimensiones deben salir de la MISMA tabla de hecho (sus columnas estan
-  denormalizadas en el hecho). Ej: "matricula" -> fact_matricula_ciclo o FTE en fact_fte_periodo;
-  NUNCA mezcles una medida de una tabla con una columna de otra (no hay joins entre hechos).
+- Las medidas, las dimensiones Y LOS FILTROS deben salir TODOS de la MISMA tabla de hecho (sus
+  columnas estan denormalizadas en el hecho). Ej: "matricula" -> fact_matricula_ciclo o FTE en
+  fact_fte_periodo; NUNCA mezcles una medida de una tabla con una columna/filtro de otra (no hay
+  joins entre hechos: un filtro sobre 'fact_admision'[anio] NO afecta a una medida de
+  'fact_examen_admision', queda inerte y el resultado sale mal).
+- NO APROXIMES una medida por otra de DISTINTO SIGNIFICADO. Si piden un "puntaje", "promedio",
+  "nota" o similar y NO existe una medida certificada de ese concepto en la tabla del hecho, NO
+  uses un CONTEO (p.ej. Postulantes, Admitidos) como sustituto NI lo llames "puntaje" en el titulo
+  o la narrativa: usa intencion "aclarar", explica que no hay esa medida y nombra las medidas
+  certificadas mas cercanas que SI existen para que el usuario elija.
+- COHERENCIA viz.series: "viz.series" DEBE contener EXACTAMENTE los mismos nombres que "medidas"
+  (mismos strings). Nunca pongas en viz.series una medida que no este en "medidas".
 - Para "matricula"/"alumnos matriculados" usa fact_matricula_ciclo o fact_fte_periodo (FTE Total).
   NUNCA uses fact_riesgo_desercion ni medidas de riesgo para responder sobre matricula.
 - Si la columna pedida (p.ej. "facultad") no existe en la tabla del hecho, usa la mas cercana
